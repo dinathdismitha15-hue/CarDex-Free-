@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GarageDex</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#10141a">
+<link rel="icon" href="icon-192.png">
+<style>
+:root{--bg:#10141a;--panel:#181e27;--line:#2a3340;--text:#e8edf3;--mute:#8a97a8;--accent:#f2c14e;
+--Common:#9aa5b1;--Uncommon:#4fbf8a;--Rare:#4a9df0;--Epic:#b06cf0;--Legendary:#f2a93b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 "Segoe UI",system-ui,sans-serif;padding:0 0 60px}
+header{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--line);gap:12px;flex-wrap:wrap}
+h1{margin:0;font:800 22px/1 "Arial Black",Impact,sans-serif;letter-spacing:.5px}
+nav{display:flex;gap:6px}
+button,.btn{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px 14px;font:inherit;cursor:pointer}
+button:hover,.btn:hover{border-color:var(--accent)}
+button:focus-visible,.btn:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.on{background:var(--accent);color:#111;border-color:var(--accent);font-weight:700}
+.primary{background:var(--accent);color:#111;border-color:var(--accent);font-weight:700}
+main{max-width:1000px;margin:0 auto;padding:20px}
+.hidden{display:none!important}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:22px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.stat b{display:block;font-size:22px}.stat span{color:var(--mute);font-size:13px}
+.stat.total{grid-column:1/-1;border-color:var(--accent)}.stat.total b{font-size:34px;color:var(--accent)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+.card{background:var(--panel);border:2px solid var(--rc,var(--line));border-radius:12px;overflow:hidden;cursor:pointer}
+.card img{width:100%;height:150px;object-fit:cover;display:block;background:#0b0e13}
+.card .in{padding:10px 12px}
+.tag{display:inline-block;padding:2px 10px;border-radius:99px;font-weight:700;font-size:12px;background:var(--rc);color:#111}
+.card h3{margin:6px 0 2px;font-size:16px}.mute{color:var(--mute)}
+.drop{border:2px dashed var(--line);border-radius:14px;padding:40px 20px;text-align:center}
+.drop.over{border-color:var(--accent)}
+.drop .big{font-size:20px;font-weight:700;margin-bottom:12px}
+.result{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px}
+@media(max-width:700px){.result{grid-template-columns:1fr}}
+.result img{width:100%;border-radius:12px;border:2px solid var(--rc)}
+table{width:100%;border-collapse:collapse;margin:10px 0}
+td{padding:6px 0;border-bottom:1px solid var(--line);vertical-align:top}td:first-child{color:var(--mute);width:42%}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+input[type=text],input[type=password],input[type=number]{width:100%;background:#0d1117;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px}
+label{display:block;margin:12px 0 4px;color:var(--mute);font-size:13px}
+.msg{padding:12px;border-radius:8px;background:#2a1f14;border:1px solid #6b4a1f;margin-top:14px}
+.spin{display:inline-block;width:16px;height:16px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:s 1s linear infinite;vertical-align:-3px;margin-right:8px}
+@keyframes s{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.spin{animation:none}}
+</style>
+</head>
+<body>
+<header>
+  <h1>GARAGEDEX</h1>
+  <nav>
+    <button id="t-garage" class="on">Garage</button>
+    <button id="t-scan">Scan car</button>
+    <button id="t-set">Settings</button>
+  </nav>
+</header>
+<main>
+  <section id="v-garage">
+    <div class="stats" id="stats"></div>
+    <div class="row" id="filters" style="margin:0 0 14px;align-items:center"></div>
+    <div class="grid" id="grid"></div>
+    <p id="empty" class="mute hidden">Your garage is empty. Tap Scan car and photograph your first vehicle.</p>
+  </section>
+
+  <section id="v-scan" class="hidden">
+    <div class="drop" id="drop">
+      <div class="big">Snap or drop a photo of a car</div>
+      <div class="row" style="justify-content:center;margin:0">
+        <label class="btn primary" style="margin:0;color:#111">Take photo
+          <input id="cam" type="file" accept="image/*" capture="environment" hidden>
+        </label>
+        <label class="btn primary" style="margin:0;color:#111">Choose from gallery
+          <input id="file" type="file" accept="image/*" multiple hidden>
+        </label>
+      </div>
+      <p class="mute" style="margin:12px 0 0">You can pick several photos at once, or drag them here.</p>
+    </div>
+    <label for="hint">Know what it is? (optional, helps the AI)</label>
+    <input id="hint" type="text" placeholder="e.g. Toyota Mark II JZX90">
+    <div id="status"></div>
+    <div id="result"></div>
+  </section>
+
+  <section id="v-set" class="hidden">
+    <label for="prov">AI service</label>
+    <select id="prov" style="width:100%;background:#0d1117;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px">
+      <option value="free">Free, no sign-up (Pollinations)</option>
+      <option value="gemini">Google Gemini (free key from your Google account)</option>
+    </select>
+    <div class="msg" style="margin:12px 0 0;background:#14202b;border-color:#2a4a66">
+      The free option needs no account or key, but it is run by volunteers, can be slow or busy, and your car photos are sent to that service. It cannot search the web, so values and production numbers come from the AI's own knowledge and are rougher.
+    </div>
+    <div id="gbox" class="hidden">
+      <div class="msg" style="background:#14202b;border-color:#2a4a66">
+        <b>Get a free Gemini key</b>
+        <ol style="margin:6px 0 0;padding-left:20px">
+          <li>Open <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="color:var(--accent)">aistudio.google.com/apikey</a> and sign in with Google.</li>
+          <li>Click <b>Create API key</b>, then copy the key starting with <b>AIza</b>.</li>
+        </ol>
+      </div>
+      <label for="key">Gemini API key (stored only in this browser)</label>
+      <input id="key" type="password" placeholder="AIza...">
+      <label for="model">Gemini model</label>
+      <input id="model" type="text">
+      <label><input id="web" type="checkbox" checked> Use Google Search for prices and production numbers</label>
+    </div>
+    <div class="row"><button class="primary" id="save">Save settings</button></div>
+    <h3>Backup</h3>
+    <div class="row">
+      <button id="exp">Export garage (JSON)</button>
+      <label class="btn">Import garage<input id="imp" type="file" accept=".json" hidden></label>
+      <button id="wipe">Delete everything</button>
+    </div>
+    <p class="mute">Everything lives in this browser's local storage. Clearing site data erases your garage, so export a backup now and then.</p>
+  </section>
+</main>
+
+<script>
+const $=id=>document.getElementById(id);
+const RARITIES=["Common","Uncommon","Rare","Epic","Legendary"];
+const money=n=>"$"+Math.round(n||0).toLocaleString("en-US");
+const num=n=>n==null||isNaN(n)?"Unknown":Number(n).toLocaleString("en-US");
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const load=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}};
+const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));return true}catch{alert("Storage is full. Export a backup and delete some cars.");return false}};
+let garage=load("gd_garage",[]);
+let cfg=Object.assign({key:"",model:"gemini-flash-latest",web:true,provider:"free"},load("gd_cfg_gemini",{}));
+let pending=null,queue=[],filt="All",srt="new";
+function next(){const f=queue.shift();if(f)handle(f);else $("status").innerHTML=""}
+
+// Rarity from production run and market value; the rarer of the two wins.
+function rarityOf(c){
+  const u=c.unitsProduced,v=c.priceUsd||0;
+  let a=0,b=0;
+  if(u!=null){a=u<=500?4:u<=5000?3:u<=50000?2:u<=300000?1:0}
+  b=v>=500000?4:v>=150000?3:v>=60000?2:v>=30000?1:0;
+  return RARITIES[Math.max(a,b)];
+}
+const color=r=>`var(--${r})`;
+
+// Tabs
+function show(t){
+  for(const k of ["garage","scan","set"]){$("v-"+k).classList.toggle("hidden",k!==t);$("t-"+k).classList.toggle("on",k===t)}
+  if(t==="garage")render();
+}
+$("t-garage").onclick=()=>show("garage");$("t-scan").onclick=()=>show("scan");$("t-set").onclick=()=>show("set");
+
+// Garage
+function render(){
+  const total=garage.reduce((s,c)=>s+(c.priceUsd||0),0);
+  const counts=Object.fromEntries(RARITIES.map(r=>[r,0]));
+  garage.forEach(c=>counts[c.rarity]++);
+  $("stats").innerHTML=`<div class="stat total"><b>${money(total)}</b><span>Total garage value · ${garage.length} vehicle${garage.length===1?"":"s"}</span></div>`+
+    RARITIES.slice().reverse().map(r=>`<div class="stat" style="border-color:${color(r)}"><b style="color:${color(r)}">${counts[r]}</b><span>${r}</span></div>`).join("");
+  $("filters").innerHTML=["All",...RARITIES.slice().reverse()].map(r=>`<button class="${filt===r?"on":""}" data-f="${r}">${r}</button>`).join("")+
+    `<select id="sort" style="background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px;margin-left:auto">
+    ${[["new","Newest first"],["val","Highest value"],["hp","Most horsepower"],["rar","Rarest first"]].map(([v,l])=>`<option value="${v}"${srt===v?" selected":""}>${l}</option>`).join("")}</select>`;
+  document.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{filt=b.dataset.f;render()});
+  $("sort").onchange=e=>{srt=e.target.value;render()};
+  let list=garage.filter(c=>filt==="All"||c.rarity===filt);
+  const cmp={new:(a,b)=>b.id-a.id,val:(a,b)=>(b.priceUsd||0)-(a.priceUsd||0),hp:(a,b)=>(b.hp||0)-(a.hp||0),rar:(a,b)=>RARITIES.indexOf(b.rarity)-RARITIES.indexOf(a.rarity)||(b.priceUsd||0)-(a.priceUsd||0)};
+  list.sort(cmp[srt]);
+  $("grid").innerHTML=list.map(c=>`<div class="card" style="--rc:${color(c.rarity)}" data-id="${c.id}">
+    <img src="${c.thumb}" alt="">
+    <div class="in"><span class="tag">${c.rarity}</span><h3>${esc(c.year)} ${esc(c.make)} ${esc(c.model)}</h3>
+    <div class="mute">${esc(c.hp?c.hp+" hp":"hp unknown")} · ${money(c.priceUsd)}</div></div></div>`).join("");
+  $("empty").classList.toggle("hidden",garage.length>0);
+  document.querySelectorAll(".card").forEach(el=>el.onclick=()=>{
+    const c=garage.find(x=>x.id==el.dataset.id);show("scan");detail(c,true)});
+}
+
+// Image handling
+function toDataUrl(file,max,q){
+  return new Promise((res,rej)=>{
+    const img=new Image(),url=URL.createObjectURL(file);
+    img.onload=()=>{const s=Math.min(1,max/Math.max(img.width,img.height));
+      const cv=document.createElement("canvas");cv.width=img.width*s;cv.height=img.height*s;
+      cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height);URL.revokeObjectURL(url);res(cv.toDataURL("image/jpeg",q))};
+    img.onerror=()=>rej(new Error("Could not read that image."));img.src=url;
+  });
+}
+
+const hintText=()=>{const h=($("hint")?.value||"").trim();return h?`The owner says this car is: "${h}". Use that as the identification and fill in the details. `:""};
+const P=w=>PROMPT.replace("{WEB}",w).replace("{HINT}",hintText());
+const PROMPT=`Identify the car in this photo. ${"{WEB}"}{HINT}Respond with ONLY a JSON object, no markdown, using these keys:
+year (number, best estimate), make, model, trim, bodyStyle, engine (e.g. "5.0L V8"), hp (number), torqueLbFt (number), transmission, drivetrain, zeroToSixty (seconds, number or null), topSpeedMph (number or null),
+customizations (array of visible aftermarket mods, empty if stock), unitsProduced (number for that model/generation/trim, or null if unknown), unitsSold (number or null, same scope),
+priceUsd (number: typical current used-market value in USD for this exact car, adjusted for visible mods), msrpUsd (original price or null), confidence ("low"|"medium"|"high"), notes (one interesting fact, max 25 words), sources (array of short strings, may be empty).
+The photo may be dark, blurry, cropped, or show the car from the side or at night: still identify it with your best guess and set confidence to "low" instead of refusing. Only return {"error":"No car found in the photo"} if there is truly no vehicle anywhere in the image. Production and sales figures are estimates unless you found a source; use null when unsure rather than guessing.`;
+
+async function identifyGemini(dataUrl){
+  if(!cfg.key)throw new Error("Add your Gemini API key in Settings first.");
+  const build=web=>{
+    const b={contents:[{parts:[
+      {text:P(web?"Use Google Search to verify specs, price, and production numbers. ":"")},
+      {inline_data:{mime_type:"image/jpeg",data:dataUrl.split(",")[1]}}]}]};
+    if(web)b.tools=[{google_search:{}}];else b.generationConfig={responseMimeType:"application/json"};
+    return b};
+  const call=b=>fetch("https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(cfg.model)+":generateContent",
+    {method:"POST",headers:{"content-type":"application/json","x-goog-api-key":cfg.key},body:JSON.stringify(b)});
+  let r=await call(build(cfg.web));
+  if(!r.ok&&cfg.web&&r.status!==400&&r.status!==403&&r.status!==429)r=await call(build(false));
+  if(!r.ok){const e=await r.json().catch(()=>({}));
+    const m=e.error?.message||("Request failed ("+r.status+")");
+    throw new Error(r.status===400&&/API key/i.test(m)?"Gemini rejected the key. Re-copy it from aistudio.google.com/apikey.":r.status===429?"Gemini rate limit reached. Wait a minute and try again.":m)}
+  const d=await r.json();
+  const text=(d.candidates?.[0]?.content?.parts||[]).map(p=>p.text||"").join("\n");
+  const m=text.match(/\{[\s\S]*\}/);
+  if(!m)throw new Error("Gemini did not return details. Try a clearer photo.");
+  const j=JSON.parse(m[0]);
+  if(j.error)throw new Error(j.error);
+  return j;
+}
+
+async function identifyFree(dataUrl){
+  let last="";
+  const NOCAR=/no car|no vehicle/i;
+  for(const model of ["openai","gemini","openai-large"]){
+    const body={model,messages:[{role:"user",content:[
+      {type:"text",text:P("Use your own knowledge. ")},
+      {type:"image_url",image_url:{url:dataUrl}}]}]};
+    for(const u of ["https://text.pollinations.ai/openai","https://gen.pollinations.ai/v1/chat/completions"]){
+      try{
+        const r=await fetch(u,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+        if(!r.ok){last="The free AI service returned an error ("+r.status+").";continue}
+        const d=await r.json();
+        const t=d.choices?.[0]?.message?.content||"";
+        const m=t.match(/\{[\s\S]*\}/);
+        if(!m){last="The AI did not return car details. Try a clearer photo.";continue}
+        const j=JSON.parse(m[0]);
+        if(j.error){last=j.error;if(NOCAR.test(j.error))break;throw new Error(j.error)}
+        if(!j.make&&!j.model){last="The AI could not name the car.";break}
+        return j;
+      }catch(e){
+        if(e instanceof SyntaxError){last="The AI reply was garbled. Try again.";continue}
+        if(e instanceof TypeError){last="Could not reach the free AI service. Check your internet, or switch to Gemini in Settings.";continue}
+        throw e;
+      }
+    }
+  }
+  throw new Error((last||"The free AI service is unavailable.")+" Tip: type the car's name in the box above the photo and scan again.");
+}
+const identify=d=>cfg.provider==="gemini"?identifyGemini(d):identifyFree(d);
+
+async function handle(file){
+  if(!file)return;
+  $("result").innerHTML="";
+  $("status").innerHTML=`<p><span class="spin"></span>Identifying the car…${queue.length?` (${queue.length} more waiting)`:""}</p>`;
+  try{
+    const big=await toDataUrl(file,1024,.85),thumb=await toDataUrl(file,360,.7);
+    const j=await identify(big);
+    pending={id:Date.now(),thumb,year:j.year,make:j.make||"Unknown",model:j.model||"",trim:j.trim,bodyStyle:j.bodyStyle,
+      engine:j.engine,hp:j.hp,torqueLbFt:j.torqueLbFt,transmission:j.transmission,drivetrain:j.drivetrain,
+      zeroToSixty:j.zeroToSixty,topSpeedMph:j.topSpeedMph,customizations:j.customizations||[],
+      unitsProduced:j.unitsProduced,unitsSold:j.unitsSold,priceUsd:j.priceUsd||0,msrpUsd:j.msrpUsd,
+      confidence:j.confidence,notes:j.notes,sources:j.sources||[],added:new Date().toISOString()};
+    pending.rarity=rarityOf(pending);
+    $("status").innerHTML="";detail(pending,false);
+  }catch(e){$("status").innerHTML=`<div class="msg">${esc(e.message)}${queue.length?" Moving to the next photo…":""}</div>`;
+    if(queue.length)setTimeout(next,2500)}
+}
+function addFiles(list){queue=[...list].filter(f=>f.type.startsWith("image/"));next()}
+for(const id of ["file","cam"])$(id).onchange=e=>{addFiles(e.target.files);e.target.value=""};
+const dz=$("drop");
+dz.ondragover=e=>{e.preventDefault();dz.classList.add("over")};
+dz.ondragleave=()=>dz.classList.remove("over");
+dz.ondrop=e=>{e.preventDefault();dz.classList.remove("over");addFiles(e.dataTransfer.files)};
+
+function detail(c,saved){
+  const row=(k,v)=>v==null||v===""?"":`<tr><td>${k}</td><td>${v}</td></tr>`;
+  const mods=c.customizations.length?c.customizations.map(esc).join(", "):"Stock";
+  $("result").innerHTML=`<div class="result" style="--rc:${color(c.rarity)}">
+    <div><img src="${c.thumb}" alt=""></div>
+    <div><span class="tag">${c.rarity}</span>
+      <h2 style="margin:6px 0">${esc(c.year)} ${esc(c.make)} ${esc(c.model)} ${esc(c.trim||"")}</h2>
+      <div class="mute">AI confidence: ${esc(c.confidence||"unknown")}</div>
+      <table>
+      ${row("Engine",esc(c.engine))}${row("Horsepower",c.hp?num(c.hp)+" hp":"")}${row("Torque",c.torqueLbFt?num(c.torqueLbFt)+" lb-ft":"")}
+      ${row("Transmission",esc(c.transmission))}${row("Drivetrain",esc(c.drivetrain))}${row("0–60 mph",c.zeroToSixty?c.zeroToSixty+" s":"")}
+      ${row("Top speed",c.topSpeedMph?c.topSpeedMph+" mph":"")}${row("Customizations",mods)}
+      ${row("Units produced",num(c.unitsProduced))}${row("Units sold",num(c.unitsSold))}
+      ${row("Original MSRP",c.msrpUsd?money(c.msrpUsd):"")}
+      <tr><td>Estimated value</td><td><input type="number" id="val" value="${Math.round(c.priceUsd||0)}" style="width:150px"> </td></tr></table>
+      ${c.notes?`<p>${esc(c.notes)}</p>`:""}
+      <p class="mute" style="font-size:12px">Values, production and sales counts are AI estimates. ${c.sources.length?"Sources: "+c.sources.map(esc).join("; "):""}</p>
+      <div class="row">${saved?`<button id="del">Remove from garage</button>`:`<button class="primary" id="add">Add to garage</button><button id="skip">Discard</button>`}
+      <button id="back">Back</button></div></div></div>`;
+  $("val").onchange=()=>{c.priceUsd=+$("val").value||0;c.rarity=rarityOf(c);if(saved)save("gd_garage",garage);detail(c,saved)};
+  $("back").onclick=()=>show("garage");
+  if(saved)$("del").onclick=()=>{if(confirm("Remove this car?")){garage=garage.filter(x=>x.id!==c.id);save("gd_garage",garage);show("garage")}};
+  else{
+    $("add").onclick=()=>{garage.push(c);if(save("gd_garage",garage)){pending=null;$("result").innerHTML="";queue.length?next():show("garage")}else garage.pop()};
+    $("skip").onclick=()=>{pending=null;$("result").innerHTML="";queue.length?next():$("status").innerHTML=""};
+  }
+}
+
+// Settings
+$("key").value=cfg.key;$("model").value=cfg.model;$("web").checked=cfg.web;$("prov").value=cfg.provider;
+const gb=()=>$("gbox").classList.toggle("hidden",$("prov").value!=="gemini");gb();$("prov").onchange=gb;
+$("save").onclick=()=>{cfg={provider:$("prov").value,key:$("key").value.trim(),model:$("model").value.trim()||"gemini-flash-latest",web:$("web").checked};save("gd_cfg_gemini",cfg);alert("Settings saved.")};
+$("exp").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(garage)],{type:"application/json"}));a.download="garagedex-backup.json";a.click()};
+$("imp").onchange=async e=>{try{const d=JSON.parse(await e.target.files[0].text());if(!Array.isArray(d))throw 0;garage=d;save("gd_garage",garage);show("garage")}catch{alert("That file is not a GarageDex backup.")}};
+$("wipe").onclick=()=>{if(confirm("Delete every car in your garage?")){garage=[];save("gd_garage",garage);show("garage")}};
+
+show("garage");
+if("serviceWorker"in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>
